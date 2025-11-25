@@ -1,0 +1,65 @@
+name: Smoke test (UI)
+
+on:
+  schedule:
+    - cron: "0 * * * *"
+  workflow_dispatch: {}
+
+jobs:
+  smoke-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Install Playwright
+        run: |
+          npm install --no-save playwright
+          npx playwright install --with-deps chromium
+
+      - name: Run smoke check
+        env:
+          APP_URL: https://flamingtempura.github.io/bibtex-tidy/
+          EXPECTED: |
+            Click Tidy to clean up the entries below
+            @book{sweig42,
+            	title        = {The impossible book},
+            	author       = {Stefa{n} Sweig},
+            	year         = 1942,
+            	month        = mar,
+            	publisher    = {Dead Poet Society}
+            }
+            @article{steward03,
+            	title        = {Cooking behind bars},
+            	author       = {Martha Steward},
+            	year         = 2003,
+            	publisher    = {Culinary Expert Series}
+            }
+            @book{impossible,
+            	title        = {The impossible book},
+            	author       = {Stefan Sweig},
+            	year         = 1942,
+            	month        = mar,
+            	publisher    = {Dead Poet Society}
+            }
+        run: |
+          node - <<'NODE'
+          import { strict as assert } from 'node:assert';
+          import { chromium } from 'playwright';
+
+          const browser = await chromium.launch();
+          const page = await browser.newPage();
+          await page.goto(process.env.APP_URL, { waitUntil: 'networkidle' });
+
+          const textbox = page.getByRole('textbox', { name: 'BibTeX Editor' });
+          await page.getByRole('button', { name: 'Tidy' }).click();
+          await page.waitForTimeout(1000);
+
+          const output = await textbox.innerText();
+          assert.equal(output.trim(), process.env.EXPECTED.trim());
+
+          await browser.close();
+          NODE

@@ -1,0 +1,5 @@
+- id: bibtex-tidy
+  name: bibtex-tidy
+  entry: ./bin/bibtex-tidy --modify
+  language: script
+  types: ['bib']
